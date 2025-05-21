@@ -5,4 +5,4 @@
 ## How to run
 1. Clone the repository
 2. npm i
-3. node app.js [target unix timestamp]
+3. node app.js [target epoch timestamp]
