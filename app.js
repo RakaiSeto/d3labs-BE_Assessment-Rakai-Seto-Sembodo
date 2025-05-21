@@ -2,7 +2,7 @@ require('dotenv').config();
 const { ethers } = require('ethers');
 const EventCacheDB = require('./db');
 
-const provider = new ethers.JsonRpcProvider(process.env.INFURA_HTTPS);
+const provider = new ethers.JsonRpcProvider("https://mainnet.infura.io/v3/d6badd75497e433d97404405f5a1f8bc");
 
 const contractAddress = '0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d';
 
@@ -60,16 +60,18 @@ async function getHolder(provider, contractAddress, targetBlockNumber) {
     let maxBlock = targetBlockNumber;
 
     // Dynamic Chunk Sizing Parameters
-    let currentChunkSize = 2000;
+    let currentChunkSize = 50000;
     const MIN_CHUNK_SIZE = 100; 
-    const MAX_CHUNK_SIZE = 50000; 
+    const MAX_CHUNK_SIZE = 150000; 
     const MAX_LOGS_PER_QUERY = 9500; 
-    const MIN_LOGS_TO_INCREASE_CHUNK = 500; // If logs are below this, increase chunk size
+    const MIN_LOGS_TO_INCREASE_CHUNK = 1000; // If logs are below this, increase chunk size
     let highestCachedBlock = await db.GetHighestCachedBlock();
     if (highestCachedBlock > maxBlock) {
         console.log('No events to query, exiting...');
         return;
     }
+
+    let startTime = Date.now();
 
     while (currentBlock <= maxBlock) {
         if (highestCachedBlock > currentBlock) {
@@ -84,6 +86,8 @@ async function getHolder(provider, contractAddress, targetBlockNumber) {
             const events = await contract.queryFilter(holder, currentBlock, toBlockChunk);
             // Check if the query hit the max log limit (or got very close)
             console.log(`Received ${events.length} logs`);
+            await db.bulkInsertEvents(events);
+
             if (events.length >= MAX_LOGS_PER_QUERY) {
                 console.warn(`High event density detected (received ${events.length} logs). Decreasing next chunk size.`);
                 currentChunkSize = Math.max(MIN_CHUNK_SIZE, Math.floor(currentChunkSize * 0.75)); // Reduce by 25%
@@ -98,7 +102,6 @@ async function getHolder(provider, contractAddress, targetBlockNumber) {
                 console.log(`chunk size changed to ${currentChunkSize}`);
             }
 
-            await db.bulkInsertEvents(events);
             currentBlock = toBlockChunk + 1;
             console.log(`--------------------------------`);
         } catch (error) {
@@ -114,6 +117,8 @@ async function getHolder(provider, contractAddress, targetBlockNumber) {
             continue;
         }
     }
+    let timeEnd = Date.now();
+    console.log(`Time taken: ${timeEnd - startTime}ms`);
 }
 
 const main = async () => {
