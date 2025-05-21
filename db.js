@@ -134,6 +134,7 @@ class EventCacheDB {
                 if (err) {
                     reject(err);
                 } else {
+                    console.log(`Received ${rows.length} logs`);
                     // Reconstruct a format similar to ethers.js event.args
                     const formattedRows = rows.map((row) => ({
                         blockNumber: row.blockNumber,
